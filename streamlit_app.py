@@ -1,49 +1,38 @@
 import streamlit as st
-import pandas as pd
 import pickle
+import numpy as np
 
-st.title("Wine Quality K-Means Clustering (k=3)")
-st.write("Upload your wine dataset and get cluster predictions.")
+st.title("Wine Quality Clustering (K-Means, k=3)")
+st.write("Enter wine chemical properties to predict which group it belongs to.")
 
-# Load model
-@st.cache_resource
-def load_model():
-    with open("kmeans_wine_model.pkl", "rb") as f:
-        return pickle.load(f)
+# Load trained model
+with open("kmeans_wine_model.pkl", "rb") as f:
+    kmeans = pickle.load(f)
 
-model = load_model()
+# Input form
+with st.form("wine_form"):
+    fixed_acidity = st.number_input("Fixed Acidity", value=7.4)
+    volatile_acidity = st.number_input("Volatile Acidity", value=0.7)
+    citric_acid = st.number_input("Citric Acid", value=0.0)
+    residual_sugar = st.number_input("Residual Sugar", value=1.9)
+    chlorides = st.number_input("Chlorides", value=0.076)
+    free_sulfur_dioxide = st.number_input("Free Sulfur Dioxide", value=11.0)
+    total_sulfur_dioxide = st.number_input("Total Sulfur Dioxide", value=34.0)
+    density = st.number_input("Density", value=0.9978)
+    ph = st.number_input("pH", value=3.51)
+    sulphates = st.number_input("Sulphates", value=0.56)
+    alcohol = st.number_input("Alcohol", value=9.4)
 
-# File uploader
-uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+    submit = st.form_submit_button("Predict Group")
 
-if uploaded_file is not None:
-    # Read CSV
-    df = pd.read_csv(uploaded_file, sep=';')
+# Prediction
+if submit:
+    input_data = np.array([[
+        fixed_acidity, volatile_acidity, citric_acid, residual_sugar,
+        chlorides, free_sulfur_dioxide, total_sulfur_dioxide,
+        density, ph, sulphates, alcohol
+    ]])
 
-    st.subheader("Uploaded Dataset")
-    st.dataframe(df)
+    cluster = kmeans.predict(input_data)[0]
 
-    # Drop target column
-    X = df.drop(columns=["quality"])
-
-    # Predict clusters
-    clusters = model.predict(X)
-    df["Cluster"] = clusters
-
-    st.subheader("Clustered Data")
-    st.dataframe(df)
-
-    # Download clustered output
-    csv = df.to_csv(index=False)
-    st.download_button(
-        "Download Results",
-        data=csv,
-        file_name="clustered_output.csv",
-        mime="text/csv"
-    )
-
-    # Cluster centers
-    st.subheader("Cluster Centers")
-    centers = pd.DataFrame(model.cluster_centers_, columns=X.columns)
-    st.dataframe(centers)
-
+    st.success(f"### 🍷 This wine belongs to **Group {cluster}**")
