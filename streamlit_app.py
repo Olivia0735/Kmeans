@@ -1,34 +1,49 @@
 import streamlit as st
 import pandas as pd
-import joblib
+import pickle
 
-st.title("🚢 Titanic Survival Predictor")
+st.title("Wine Quality K-Means Clustering (k=3)")
+st.write("Upload your wine dataset and get cluster predictions.")
 
-# Load model & features
-model = joblib.load("titanic_model.pkl")
-features = joblib.load("titanic_features.pkl")
+# Load model
+@st.cache_resource
+def load_model():
+    with open("kmeans_wine_model.pkl", "rb") as f:
+        return pickle.load(f)
 
-st.subheader("Enter Passenger Details")
+model = load_model()
 
-pclass = st.selectbox("Passenger Class (1 = First, 3 = Third)", [1, 2, 3])
-sex = st.radio("Sex", ["male", "female"])
-age = st.number_input("Age", min_value=0, max_value=100, value=25)
-fare = st.number_input("Fare", min_value=0.0, max_value=600.0, value=50.0)
+# File uploader
+uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
 
-if st.button("Predict Survival"):
-    # Convert inputs into DataFrame
-    input_df = pd.DataFrame([{
-        "Pclass": pclass,
-        "Sex": 0 if sex == "male" else 1,
-        "Age": age,
-        "Fare": fare
-    }])
+if uploaded_file is not None:
+    # Read CSV
+    df = pd.read_csv(uploaded_file, sep=';')
 
-    # Predict
-    pred = model.predict(input_df)[0]
-    prob = model.predict_proba(input_df)[0][1]
+    st.subheader("Uploaded Dataset")
+    st.dataframe(df)
 
-    if pred == 1:
-        st.success(f"🎉 Survived! (Probability: {prob:.2f})")
-    else:
-        st.error(f"💀 Did NOT survive (Probability: {prob:.2f})")
+    # Drop target column
+    X = df.drop(columns=["quality"])
+
+    # Predict clusters
+    clusters = model.predict(X)
+    df["Cluster"] = clusters
+
+    st.subheader("Clustered Data")
+    st.dataframe(df)
+
+    # Download clustered output
+    csv = df.to_csv(index=False)
+    st.download_button(
+        "Download Results",
+        data=csv,
+        file_name="clustered_output.csv",
+        mime="text/csv"
+    )
+
+    # Cluster centers
+    st.subheader("Cluster Centers")
+    centers = pd.DataFrame(model.cluster_centers_, columns=X.columns)
+    st.dataframe(centers)
+
